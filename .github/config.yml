@@ -1,0 +1,60 @@
+version: 2.1
+
+autolinkreferences:
+  - prefix: CANOR-
+    key: number
+    template: "{type}#{number}"
+
+columns:
+  - id: backlog
+    name: Backlog
+  - id: todo
+    name: To Do
+  - id: in_progress
+    name: In Progress
+  - id: in_review
+    name: In Review
+  - id: done
+    name: Done
+
+labels:
+  - name: bug
+    color: d73a4a
+    description: Something isn't working
+  - name: enhancement
+    color: a2eeef
+    description: New feature or request
+  - name: documentation
+    color: 0075ca
+    description: Improvements to the documentation
+  - name: security
+    color: ededed
+    description: Security related issues
+  - name: question
+    color: d876e3
+    description: Further information is requested
+  - name: help wanted
+    color: 008672
+    description: Extra attention is needed
+  - name: good first issue
+    color: 7057ff
+    description: Good for newcomers
+
+milestones:
+  - title: v2.1.0
+    description: Next minor release
+    due_on: null
+  - title: v3.0.0
+    description: Major release with breaking changes
+    due_on: null
+
+projects:
+  - name: Canor Development
+    description: Main development project for Canor AI Music Platform
+    resources:
+      repository:
+        states:
+          - name: open
+            color: 128A27
+          - name: closed
+            color: B60205
