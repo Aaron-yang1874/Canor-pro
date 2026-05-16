@@ -1,0 +1,50 @@
+name: Question
+description: 提问或寻求帮助
+title: "[Question]: "
+labels: ["question"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## ❓ 问题
+
+        请详细描述您的问题。
+
+  - type: textarea
+    id: question
+    attributes:
+      label: 问题详情
+      description: 请提供尽可能多的细节
+      placeholder: |
+        我的问题是...
+    validations:
+      required: true
+
+  - type: input
+    id: context
+    attributes:
+      label: 相关上下文
+      description: 相关的文件、代码或配置
+      placeholder: |
+        相关文件或代码...
+    validations:
+      required: false
+
+  - type: textarea
+    id: attempts
+    attributes:
+      label: 已尝试的解决方案
+      description: 您已经尝试过哪些解决方案？
+      placeholder: |
+        已尝试的解决方案...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: 确认
+      options:
+        - label: 我已查看文档和现有 Issue
+          required: true
