@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isDevMode, isDevToolsRoute } from "@/lib/devtools";
 
 const PUBLIC_API_PREFIXES = ["/api/auth/"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (isDevToolsRoute(pathname) && !isDevMode()) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   for (const prefix of PUBLIC_API_PREFIXES) {
     if (pathname.startsWith(prefix)) {

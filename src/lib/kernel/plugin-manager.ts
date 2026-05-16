@@ -6,6 +6,16 @@ export interface Plugin {
   initialize: () => Promise<void>;
   destroy: () => Promise<void>;
   handleEvent?: (event: string, data: unknown) => void;
+  serializeState?: () => Promise<PluginState>;
+  deserializeState?: (state: PluginState) => Promise<void>;
+}
+
+export interface PluginState {
+  id: string;
+  name: string;
+  version: string;
+  enabled: boolean;
+  [key: string]: unknown;
 }
 
 class PluginManager {
@@ -49,11 +59,65 @@ class PluginManager {
   }
 
   async hotSwap(pluginId: string, newPlugin: Plugin): Promise<void> {
+    const oldPlugin = this.plugins.get(pluginId);
+    
+    let oldState: PluginState | null = null;
+    if (oldPlugin && oldPlugin.serializeState) {
+      try {
+        oldState = await oldPlugin.serializeState();
+      } catch (error) {
+        console.error(`Failed to serialize state for plugin ${pluginId}:`, error);
+      }
+    }
+
     await this.destroyPlugin(pluginId);
     this.plugins.delete(pluginId);
+
     this.plugins.set(newPlugin.id, newPlugin);
-    if (newPlugin.enabled) {
+    if (newPlugin.enabled || (oldPlugin && oldPlugin.enabled)) {
       await this.initializePlugin(newPlugin.id);
+    }
+
+    if (newPlugin.deserializeState && oldState) {
+      try {
+        await newPlugin.deserializeState(oldState);
+      } catch (error) {
+        console.error(`Failed to deserialize state for plugin ${newPlugin.id}:`, error);
+      }
+    }
+  }
+
+  async serializeState(pluginId: string): Promise<PluginState | null> {
+    const plugin = this.plugins.get(pluginId);
+    if (!plugin || !this.initialized.has(pluginId)) {
+      return null;
+    }
+
+    if (plugin.serializeState) {
+      try {
+        return await plugin.serializeState();
+      } catch (error) {
+        console.error(`Failed to serialize state for plugin ${pluginId}:`, error);
+        return null;
+      }
+    }
+
+    return {
+      id: plugin.id,
+      name: plugin.name,
+      version: plugin.version,
+      enabled: plugin.enabled,
+    };
+  }
+
+  async deserializeState(pluginId: string, state: PluginState): Promise<void> {
+    const plugin = this.plugins.get(pluginId);
+    if (!plugin) {
+      throw new Error(`Plugin "${pluginId}" not found`);
+    }
+
+    if (plugin.deserializeState) {
+      await plugin.deserializeState(state);
     }
   }
 

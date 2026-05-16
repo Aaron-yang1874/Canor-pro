@@ -1,4 +1,6 @@
 import type { CollaborationSession, CollaborationTrack, CollaborationMessage } from "@/lib/types";
+import { checkPermission, Role } from "@/lib/rbac";
+import { Permission } from "@/lib/rbac";
 
 const sessions = new Map<string, CollaborationSession>();
 
@@ -145,4 +147,47 @@ export function getAllSessions(): CollaborationSession[] {
 
 export function deleteSession(sessionId: string): boolean {
   return sessions.delete(sessionId);
+}
+
+export function inviteCollaborator(
+  sessionId: string,
+  inviterRole: Role,
+  newParticipantId: string
+): boolean {
+  if (!checkPermission(inviterRole, Permission.ManageMembers)) {
+    throw new Error("权限不足：无法邀请协作者");
+  }
+  return addParticipant(sessionId, newParticipantId);
+}
+
+export function removeCollaborator(
+  sessionId: string,
+  removerRole: Role,
+  participantId: string
+): boolean {
+  if (!checkPermission(removerRole, Permission.ManageMembers)) {
+    throw new Error("权限不足：无法移除协作者");
+  }
+  const session = sessions.get(sessionId);
+  if (!session) return false;
+  const index = session.participants.indexOf(participantId);
+  if (index === -1) return false;
+  session.participants.splice(index, 1);
+  session.updatedAt = new Date().toISOString();
+  return true;
+}
+
+export function updatePermission(
+  sessionId: string,
+  updaterRole: Role,
+  _targetUserId: string,
+  _newRole: Role
+): boolean {
+  if (!checkPermission(updaterRole, Permission.ManageMembers)) {
+    throw new Error("权限不足：无法更新权限");
+  }
+  const session = sessions.get(sessionId);
+  if (!session) return false;
+  session.updatedAt = new Date().toISOString();
+  return true;
 }

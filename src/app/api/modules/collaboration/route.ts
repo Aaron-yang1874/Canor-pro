@@ -9,8 +9,12 @@ import {
   buildCollaborationPrompt,
   getAllSessions,
   deleteSession,
+  inviteCollaborator,
+  removeCollaborator,
+  updatePermission,
 } from "@/lib/modules/collaboration";
 import { createApiRoute } from "@/lib/middleware/api-middleware";
+import { Permission, Role } from "@/lib/rbac";
 
 async function handlePOST(request: NextRequest) {
   const body = await request.json();
@@ -85,6 +89,45 @@ async function handlePOST(request: NextRequest) {
       }
       return NextResponse.json({ prompt });
     }
+    case "invite": {
+      const { sessionId, newParticipantId } = body;
+      if (!sessionId || !newParticipantId) {
+        return NextResponse.json({ error: "sessionId 和 newParticipantId 为必填参数" }, { status: 400 });
+      }
+      const userRole = (request as NextRequest & { userRole?: string }).userRole as Role;
+      try {
+        const result = inviteCollaborator(sessionId, userRole, newParticipantId);
+        return NextResponse.json({ success: result });
+      } catch (err) {
+        return NextResponse.json({ error: err instanceof Error ? err.message : "邀请失败" }, { status: 403 });
+      }
+    }
+    case "remove": {
+      const { sessionId, participantId } = body;
+      if (!sessionId || !participantId) {
+        return NextResponse.json({ error: "sessionId 和 participantId 为必填参数" }, { status: 400 });
+      }
+      const userRole = (request as NextRequest & { userRole?: string }).userRole as Role;
+      try {
+        const result = removeCollaborator(sessionId, userRole, participantId);
+        return NextResponse.json({ success: result });
+      } catch (err) {
+        return NextResponse.json({ error: err instanceof Error ? err.message : "移除失败" }, { status: 403 });
+      }
+    }
+    case "updatePermission": {
+      const { sessionId, targetUserId, newRole } = body;
+      if (!sessionId || !targetUserId || !newRole) {
+        return NextResponse.json({ error: "sessionId, targetUserId, newRole 为必填参数" }, { status: 400 });
+      }
+      const userRole = (request as NextRequest & { userRole?: string }).userRole as Role;
+      try {
+        const result = updatePermission(sessionId, userRole, targetUserId, newRole);
+        return NextResponse.json({ success: result });
+      } catch (err) {
+        return NextResponse.json({ error: err instanceof Error ? err.message : "更新权限失败" }, { status: 403 });
+      }
+    }
     default:
       return NextResponse.json({ error: `未知操作: ${action}` }, { status: 400 });
   }
@@ -121,6 +164,6 @@ async function handleDELETE(request: NextRequest) {
   return NextResponse.json({ success: deleted });
 }
 
-export const POST = createApiRoute(handlePOST);
-export const GET = createApiRoute(handleGET);
-export const DELETE = createApiRoute(handleDELETE);
+export const POST = createApiRoute(handlePOST, { requiredPermission: Permission.EditProject });
+export const GET = createApiRoute(handleGET, { requiredPermission: Permission.ViewProject });
+export const DELETE = createApiRoute(handleDELETE, { requiredPermission: Permission.DeleteProject });

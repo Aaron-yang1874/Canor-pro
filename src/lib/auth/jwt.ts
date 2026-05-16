@@ -12,7 +12,7 @@ export interface TokenPayload {
 }
 
 export async function signToken(payload: TokenPayload): Promise<string> {
-  return new SignJWT({ role: payload.role || "user" })
+  return new SignJWT({ role: payload.role || "guest" })
     .setProtectedHeader({ alg: JWT_ALG })
     .setSubject(payload.userId)
     .setExpirationTime("24h")

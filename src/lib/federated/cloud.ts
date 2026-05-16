@@ -1,4 +1,6 @@
 import type { FederatedConfig, FederatedModelState, GradientUpdate } from "@/lib/types";
+import { secureAggregate } from "@/lib/homomorphic";
+import type { EncryptedGradient, PaillierKeyPair } from "@/lib/homomorphic";
 
 export function fedAvgAggregation(
   clientUpdates: GradientUpdate[],
@@ -50,6 +52,13 @@ export function incrementalUpdate(
   learningRate: number = 0.1
 ): number[] {
   return globalWeights.map((w, i) => w + learningRate * (delta[i] || 0));
+}
+
+export function secureGlobalAggregation(
+  encryptedGradients: EncryptedGradient[],
+  keyPair: PaillierKeyPair
+): number[] {
+  return secureAggregate(encryptedGradients, keyPair);
 }
 
 export function globalAggregation(

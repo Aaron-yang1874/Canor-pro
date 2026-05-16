@@ -1,29 +1,27 @@
-import { randomBytes } from "crypto";
 import type { GradientUpdate, FederatedModelState } from "@/lib/types";
-
-/** @deprecated 模拟实现，生产环境必须接入 node-seal 或联邦学习服务端 */
-export function homomorphicEncrypt(_data: number[]): { encrypted: number[]; key: string } {
-  const key = generateEncryptionKey();
-  const encrypted = _data.map((v, i) => v + simpleHash(key + i) * 0.001);
-  return { encrypted, key };
-}
-
-/** @deprecated 模拟实现，生产环境必须接入 node-seal 或联邦学习服务端 */
-export function homomorphicDecrypt(encrypted: number[], key: string): number[] {
-  return encrypted.map((v, i) => v - simpleHash(key + i) * 0.001);
-}
+import { generateKeyPair, encrypt, decrypt, addCiphertexts } from "@/lib/homomorphic";
 
 export function secureAggregation(updates: GradientUpdate[]): number[] {
   if (updates.length === 0) return [];
   const numWeights = updates[0].gradients[0]?.length || 0;
-  const aggregated: number[] = new Array(numWeights).fill(0);
-  for (const update of updates) {
+  const keyPair = generateKeyPair();
+
+  const allCiphertexts: bigint[][] = updates.map((update) => {
     const grads = update.gradients[0] || [];
+    return grads.map((g) => encrypt(Math.round(g * 1e6), keyPair.publicKey));
+  });
+
+  const aggregated: bigint[] = new Array(numWeights).fill(1n);
+  for (const cts of allCiphertexts) {
     for (let i = 0; i < numWeights; i++) {
-      aggregated[i] += grads[i] || 0;
+      aggregated[i] = addCiphertexts(aggregated[i], cts[i] || 1n, keyPair.publicKey);
     }
   }
-  return aggregated.map((g) => g / updates.length);
+
+  return aggregated.map((ct) => {
+    const raw = Number(decrypt(ct, keyPair.privateKey));
+    return raw / 1e6 / updates.length;
+  });
 }
 
 export function knowledgeDistillation(
@@ -59,17 +57,4 @@ export function regionalSync(
     participatingClients: localUpdates.length,
     lastUpdated: new Date().toISOString(),
   };
-}
-
-function generateEncryptionKey(): string {
-  return randomBytes(32).toString("hex");
-}
-
-function simpleHash(str: string): number {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash) + str.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
 }

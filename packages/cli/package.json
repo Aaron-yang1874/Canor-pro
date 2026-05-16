@@ -1,0 +1,23 @@
+{
+  "name": "@canor/cli",
+  "version": "1.0.0",
+  "description": "Canor Plugin Development CLI",
+  "bin": {
+    "canor": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^12.0.0",
+    "inquirer": "^9.2.0",
+    "chalk": "^5.3.0",
+    "chokidar": "^3.6.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}

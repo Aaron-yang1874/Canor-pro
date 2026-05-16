@@ -1,4 +1,6 @@
 import type { GradientUpdate, DifferentialPrivacyParams } from "@/lib/types";
+import { encrypt, serializeCiphertext } from "@/lib/homomorphic";
+import type { PaillierPublicKey } from "@/lib/homomorphic";
 
 export function computeLocalGradients(
   modelWeights: number[],
@@ -46,6 +48,17 @@ export function pruneGradients(gradients: number[], sparsity: number = 0.9): num
   absGradients.sort((a, b) => b.value - a.value);
   const threshold = absGradients[Math.floor(absGradients.length * sparsity)]?.value || 0;
   return gradients.map((g) => (Math.abs(g) >= threshold ? g : 0));
+}
+
+export function encryptGradients(
+  gradients: number[],
+  publicKey: PaillierPublicKey
+): string[] {
+  return gradients.map((g) => {
+    const scaled = Math.round(g * 1e6);
+    const ct = encrypt(scaled, publicKey);
+    return serializeCiphertext(ct);
+  });
 }
 
 export function createGradientUpdate(

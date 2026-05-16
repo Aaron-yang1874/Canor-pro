@@ -1,10 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PromptForm } from "@/components/prompt-builder/prompt-form";
 import { useCreationStage } from "@/lib/hooks/use-creation-stage";
 import { Sparkles, Loader2, Sliders, Download, ArrowLeft } from "lucide-react";
 import type { GenerationOutput } from "@/lib/types";
+
+interface PerfMonitorInterface {
+  recordMetric(name: string, value: number): void;
+}
+
+function recordWebVitals() {
+  if (typeof window === "undefined") return;
+
+  const perfMonitor = (window as Window & { __perfMonitor?: PerfMonitorInterface }).__perfMonitor;
+  if (!perfMonitor) return;
+
+  const observer = new PerformanceObserver((list: PerformanceObserverEntryList) => {
+    for (const entry of list.getEntries()) {
+      if (entry.entryType === "paint") {
+        if (entry.name === "first-contentful-paint") {
+          perfMonitor.recordMetric("FCP", entry.startTime);
+        }
+      }
+      if (entry.entryType === "largest-contentful-paint") {
+        perfMonitor.recordMetric("LCP", entry.startTime);
+      }
+      if (entry.entryType === "layout-shift") {
+        const shiftEntry = entry as PerformanceEntry & { hadRecentInput: boolean; value: number };
+        if (!shiftEntry.hadRecentInput) {
+          const layoutShifts = performance.getEntriesByType("layout-shift") as Array<PerformanceEntry & { value: number }>;
+          const currentCLS = layoutShifts.reduce((acc, e) => acc + e.value, 0);
+          perfMonitor.recordMetric("CLS", currentCLS);
+        }
+      }
+    }
+  });
+
+  try {
+    observer.observe({ entryTypes: ["paint", "largest-contentful-paint", "layout-shift"] });
+  } catch (_e) {}
+}
 
 export default function Home() {
   const {
@@ -13,6 +49,27 @@ export default function Home() {
     startExport, resetToInput,
   } = useCreationStage();
   const [generationOutput, setGenerationOutput] = useState<GenerationOutput | null>(null);
+
+  useEffect(() => {
+    recordWebVitals();
+
+    const handleLoad = () => {
+      const perfMonitor = (window as Window & { __perfMonitor?: PerfMonitorInterface }).__perfMonitor;
+      if (perfMonitor) {
+        const navTiming = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming;
+        if (navTiming) {
+          perfMonitor.recordMetric("FCP", navTiming.domContentLoadedEventEnd - navTiming.fetchStart);
+        }
+      }
+    };
+
+    if (document.readyState === "complete") {
+      handleLoad();
+    } else {
+      window.addEventListener("load", handleLoad);
+      return () => window.removeEventListener("load", handleLoad);
+    }
+  }, []);
 
   const handleGenerate = async (result: unknown) => {
     startGeneration();

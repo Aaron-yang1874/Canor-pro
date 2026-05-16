@@ -36,7 +36,7 @@ async function handlePOST(request: NextRequest): Promise<NextResponse> {
     creativeInstruction,
   });
 
-  const safetyAudit = auditContent(creativeInstruction);
+  const safetyAudit = await auditContent(creativeInstruction);
 
   const v4Prompt: BuiltPromptV4 = {
     ...basePrompt,
@@ -146,7 +146,7 @@ async function handleGET(request: NextRequest): Promise<NextResponse> {
 
   if (style) {
     const basePrompt = buildQuickPrompt(style as StyleTag, emotion, description);
-    const safetyAudit = auditContent(basePrompt.components.creativeInstruction);
+    const safetyAudit = await auditContent(basePrompt.components.creativeInstruction);
     const v4Prompt: BuiltPromptV4 = {
       ...basePrompt,
       modality: "text",

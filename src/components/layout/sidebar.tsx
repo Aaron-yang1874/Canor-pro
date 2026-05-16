@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, Music, Library, History, Disc, User } from "lucide-react";
+import { Sparkles, Music, Library, History, Disc, User, Layers, Store } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/", label: "创作工坊", icon: Music },
+  { href: "/workspace", label: "编曲工作台", icon: Layers },
   { href: "/styles", label: "风格模板库", icon: Library },
   { href: "/history", label: "创作历史", icon: History },
   { href: "/library", label: "我的曲库", icon: Disc },
+  { href: "/marketplace", label: "插件市场", icon: Store },
 ];
 
 export function Sidebar() {

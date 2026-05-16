@@ -496,12 +496,9 @@ export interface ContentFlag {
 }
 
 export interface CopyrightCheckResult {
-  similarityScore: number;
-  matchedWork?: string;
-  matchedArtist?: string;
-  isBlocked: boolean;
-  threshold: number;
-  fingerprintMatch: boolean;
+  isViolation: boolean;
+  similarity: number;
+  matchedWorkId?: string;
 }
 
 export interface PrivacyConfig {

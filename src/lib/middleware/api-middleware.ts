@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createErrorRecord, classifyError } from "@/lib/errors/handler";
 import { auditContent } from "@/lib/safety/content-audit";
 import { verifyToken } from "@/lib/auth/jwt";
+import { withRbac } from "@/lib/rbac";
+import { Permission } from "@/lib/rbac";
 
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 const MAX_RATE_LIMIT_ENTRIES = 10000;
@@ -42,6 +44,7 @@ export interface ApiHandlerOptions {
   auditContent?: boolean;
   requireAuth?: boolean;
   rateLimit?: number;
+  requiredPermission?: Permission;
 }
 
 const isDev = process.env.NODE_ENV === "development";
@@ -116,7 +119,7 @@ export function withContentAudit(
       const body = await request.clone().json();
       if (body.content || body.prompt || body.creativeInstruction) {
         const contentToAudit = body.content || body.prompt || body.creativeInstruction || "";
-        const auditResult = auditContent(contentToAudit);
+        const auditResult = await auditContent(contentToAudit);
         if (!auditResult.passed) {
           return NextResponse.json(
             { success: false, audit: auditResult, message: "Content failed safety audit" },
@@ -139,7 +142,9 @@ export function createApiRoute(
   if (options.auditContent) {
     wrapped = withContentAudit(wrapped);
   }
-  if (options.requireAuth !== false) {
+  if (options.requiredPermission) {
+    wrapped = withRbac(options.requiredPermission)(wrapped);
+  } else if (options.requireAuth !== false) {
     wrapped = withAuth(wrapped);
   }
   wrapped = withRateLimit(wrapped, options.rateLimit || 100);

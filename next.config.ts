@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { PHASE_PRODUCTION_BUILD } from "next/constants";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -35,4 +36,16 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+function setPhaseConfig(phase: string) {
+  if (phase === PHASE_PRODUCTION_BUILD) {
+    return {
+      ...nextConfig,
+      productionBrowserSourceMaps: false,
+    };
+  }
+  return nextConfig;
+}
+
+export default function (phase: string) {
+  return setPhaseConfig(phase);
+}

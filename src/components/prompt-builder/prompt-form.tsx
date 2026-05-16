@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { io, Socket } from "socket.io-client";
 import {
   Music,
   Hash,
@@ -12,8 +13,11 @@ import {
   ChevronUp,
   Upload,
   Mic,
+  Users,
 } from "lucide-react";
 import { MultimodalInput } from "@/components/multimodal/multimodal-input";
+import { CollabIndicator } from "@/components/collaboration/collab-indicator";
+import { CollabCursor } from "@/components/collaboration/collab-cursor";
 import type { ModalityType } from "@/lib/types";
 
 interface StyleTag {
@@ -84,6 +88,16 @@ interface PromptFormProps {
   onGenerate: (result: unknown) => void;
 }
 
+interface Collaborator {
+  userId: string;
+  userName: string;
+  color: string;
+  cursor?: {
+    line: number;
+    column: number;
+  };
+}
+
 export function PromptForm({ onGenerate }: PromptFormProps) {
   const [moduleId, setModuleId] = useState("音乐创作");
   const [tempo, setTempo] = useState(120);
@@ -102,6 +116,73 @@ export function PromptForm({ onGenerate }: PromptFormProps) {
   const [activeModality, setActiveModality] = useState<ModalityType>("text");
   const [multimodalData, setMultimodalData] = useState<{ modality: ModalityType; data: string }>({ modality: "text", data: "" });
   const [hasVocals, setHasVocals] = useState(true);
+  
+  const [isCollaborating, setIsCollaborating] = useState(false);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [socket, setSocket] = useState<Socket | null>(null);
+  const [roomId] = useState(() => `prompt-room-${Date.now()}`);
+  const [currentUserId] = useState(() => `user-${Math.random().toString(36).substr(2, 9)}`);
+  const [currentUserName] = useState(() => `用户 ${Math.floor(Math.random() * 1000)}`);
+  const [cursorPosition, setCursorPosition] = useState({ line: 0, column: 0 });
+
+  useEffect(() => {
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
+    
+    const newSocket = io(socketUrl, {
+      query: {
+        roomId,
+        userId: currentUserId,
+        userName: currentUserName
+      },
+      transports: ['websocket', 'polling']
+    });
+
+    newSocket.on('connect', () => {
+      setIsCollaborating(true);
+    });
+
+    newSocket.on('room-joined', (data: { users: Collaborator[] }) => {
+      setCollaborators(data.users || []);
+    });
+
+    newSocket.on('presence-update', (data: Collaborator) => {
+      setCollaborators(prev => {
+        const filtered = prev.filter(u => u.userId !== data.userId);
+        return [...filtered, data];
+      });
+    });
+
+    newSocket.on('user-left', (data: { userId: string }) => {
+      setCollaborators(prev => prev.filter(u => u.userId !== data.userId));
+    });
+
+    newSocket.on('disconnect', () => {
+      setIsCollaborating(false);
+    });
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.close();
+    };
+  }, [roomId, currentUserId, currentUserName]);
+
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setCreativeInstruction(e.target.value);
+    
+    if (socket && isCollaborating) {
+      const textarea = e.target;
+      const text = textarea.value;
+      const cursorPos = textarea.selectionStart;
+      const lines = text.substring(0, cursorPos).split('\n');
+      const line = lines.length - 1;
+      const column = lines[lines.length - 1].length;
+      
+      setCursorPosition({ line, column });
+      
+      socket.emit('cursor-update', { line, column });
+    }
+  };
 
   const toggleStyle = (id: string) => {
     setSelectedStyles((prev) =>
@@ -357,16 +438,45 @@ export function PromptForm({ onGenerate }: PromptFormProps) {
       </div>
 
       <div className="dark-panel p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Users className="w-5 h-5 text-brand-500" />
+            <span className="section-title mb-0">协作创作</span>
+          </div>
+          {isCollaborating && (
+            <div className="flex items-center gap-2 text-xs text-green-500">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span>已连接</span>
+            </div>
+          )}
+        </div>
+        <CollabIndicator collaborators={collaborators} currentUserId={currentUserId} />
+      </div>
+
+      <div className="dark-panel p-6">
         <div className="flex items-center gap-3 mb-4">
           <Sparkles className="w-5 h-5 text-brand-500" />
           <span className="section-title mb-0">创作指令</span>
         </div>
-        <textarea
-          value={creativeInstruction}
-          onChange={(e) => setCreativeInstruction(e.target.value)}
-          className="input-field min-h-[120px] resize-y"
-          placeholder="描述你的创作需求，例如：创作一首充满活力的流行歌曲，使用明亮的钢琴和合成器音色，副歌部分要有强烈的记忆点..."
-        />
+        <div className="relative">
+          <textarea
+            value={creativeInstruction}
+            onChange={handleTextareaChange}
+            className="input-field min-h-[120px] resize-y"
+            placeholder="描述你的创作需求，例如：创作一首充满活力的流行歌曲，使用明亮的钢琴和合成器音色，副歌部分要有强烈的记忆点..."
+          />
+          {collaborators.map((collab) => (
+            collab.cursor && (
+              <CollabCursor
+                key={collab.userId}
+                userId={collab.userId}
+                userName={collab.userName}
+                color={collab.color}
+                position={collab.cursor}
+              />
+            )
+          ))}
+        </div>
       </div>
 
       <button
